@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 4.2.1">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"yoursite.com","root":"/","scheme":"Muse","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="一、CSRF##　1.1 CSRF概念 恶意软件让浏览器向已完成用户身份认证的网站发起请求，并执行有害的操作，就是跨站请求伪造攻击。 1.2例子假如 Alice 在 bank.com 向 Bob 汇款 10000, 那么攻击将会由以下两步骤组成:  创建一个 URL 或者 script 利用社交工程欺骗 Alice 执行代码  GET 场景如果 bank.com 把查询参数放到 URL 中, 那么">
+<meta property="og:type" content="article">
+<meta property="og:title" content="CSRF和XSS学习">
+<meta property="og:url" content="http://yoursite.com/2020/07/16/CSRFLearning/index.html">
+<meta property="og:site_name" content="Free&#39;s Blog">
+<meta property="og:description" content="一、CSRF##　1.1 CSRF概念 恶意软件让浏览器向已完成用户身份认证的网站发起请求，并执行有害的操作，就是跨站请求伪造攻击。 1.2例子假如 Alice 在 bank.com 向 Bob 汇款 10000, 那么攻击将会由以下两步骤组成:  创建一个 URL 或者 script 利用社交工程欺骗 Alice 执行代码  GET 场景如果 bank.com 把查询参数放到 URL 中, 那么">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://math.jianshu.com/math?formula=100%252C%20%E8%BF%99%E6%97%B6%E6%94%BB%E5%87%BB%E8%80%85%20Maria%20%E6%83%B3%E8%A6%81%E6%AC%BA%E9%AA%97%20Alice%252C%20%E8%AE%A9%E5%A5%B9%E7%BB%99%E8%87%AA%E5%B7%B1%E6%B1%87%E6%AC%BE">
+<meta property="article:published_time" content="2020-07-16T12:36:22.000Z">
+<meta property="article:modified_time" content="2020-07-16T15:01:45.375Z">
+<meta property="article:author" content="Free Zhang">
+<meta property="article:tag" content="网络安全">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://math.jianshu.com/math?formula=100%252C%20%E8%BF%99%E6%97%B6%E6%94%BB%E5%87%BB%E8%80%85%20Maria%20%E6%83%B3%E8%A6%81%E6%AC%BA%E9%AA%97%20Alice%252C%20%E8%AE%A9%E5%A5%B9%E7%BB%99%E8%87%AA%E5%B7%B1%E6%B1%87%E6%AC%BE">
+
+<link rel="canonical" href="http://yoursite.com/2020/07/16/CSRFLearning/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'en'
+  };
+</script>
+
+  <title>CSRF和XSS学习 | Free's Blog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="Toggle navigation bar">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">Free's Blog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+      <p class="site-subtitle" itemprop="description">守夜人后台er</p>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>Home</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>Archives</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="en">
+    <link itemprop="mainEntityOfPage" href="http://yoursite.com/2020/07/16/CSRFLearning/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.gif">
+      <meta itemprop="name" content="Free Zhang">
+      <meta itemprop="description" content="Life is so much better with music and code！">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Free's Blog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          CSRF和XSS学习
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">Posted on</span>
+              
+
+              <time title="Created: 2020-07-16 20:36:22 / Modified: 23:01:45" itemprop="dateCreated datePublished" datetime="2020-07-16T20:36:22+08:00">2020-07-16</time>
+            </span>
+
+          
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <h1 id="一、CSRF"><a href="#一、CSRF" class="headerlink" title="一、CSRF"></a>一、CSRF</h1><p>##　1.1 CSRF概念</p>
+<p>恶意软件让浏览器向已完成用户身份认证的网站发起请求，并执行有害的操作，就是跨站请求伪造攻击。</p>
+<h2 id="1-2例子"><a href="#1-2例子" class="headerlink" title="1.2例子"></a>1.2例子</h2><p>假如 Alice 在 bank.com 向 Bob 汇款 <img src="https://math.jianshu.com/math?formula=100%2C%20%E8%BF%99%E6%97%B6%E6%94%BB%E5%87%BB%E8%80%85%20Maria%20%E6%83%B3%E8%A6%81%E6%AC%BA%E9%AA%97%20Alice%2C%20%E8%AE%A9%E5%A5%B9%E7%BB%99%E8%87%AA%E5%B7%B1%E6%B1%87%E6%AC%BE" alt="100, 这时攻击者 Maria 想要欺骗 Alice, 让她给自己汇款">10000, 那么攻击将会由以下两步骤组成:</p>
+<ul>
+<li>创建一个 URL 或者 script</li>
+<li>利用<strong>社交工程</strong>欺骗 Alice 执行代码</li>
+</ul>
+<h6 id="GET-场景"><a href="#GET-场景" class="headerlink" title="GET 场景"></a><strong>GET 场景</strong></h6><p>如果 bank.com 把查询参数放到 URL 中, 那么 Alice 向 Bob 转账的操作可以简化为如下:<br> <code>GET http://bank.com/transfer.do?acct=BOB&amp;amount=100 HTTP/1.1</code></p>
+<p>Maria 根据 bank.com 网站请求的结构, 将 Bob 名字替换为她自己的, 还把金额变大:<br> <code>http://bank.com/transfer.do?acct=MARIA&amp;amount=100000</code></p>
+<p>那么这个充满恶意的 URL ,被 Maria 放到 a 标签中, 并且利用欺骗语言吸引 Alice 点击:<br> <code>&lt;a href=&quot;http://bank.com/transfer.do?acct=MARIA&amp;amount=100000&quot;&gt;View my Pictures!&lt;/a&gt;</code></p>
+<p>或者放到一个 长度和宽度都为0 的图片的src 中(图片不用用户点击, 自己就发起请求):<br> <code>&lt;img src=&quot;http://bank.com/transfer.do?acct=MARIA&amp;amount=100000&quot; width=&quot;0&quot; height=&quot;0&quot; border=&quot;0&quot;&gt;</code><br> 如果这张图片放到邮件中, Alice 根本就不会发现什么. 然而浏览器还是会将请求提交到 bank.com 的后台中.</p>
+<p>一个真实的事件是发生在2008 年的 <a href="https://www.ghacks.net/2008/01/17/dos-vulnerability-in-utorrent-and-bittorrent/" target="_blank" rel="noopener"> uTorrent exploit</a></p>
+<h6 id="POST-场景"><a href="#POST-场景" class="headerlink" title="POST 场景"></a><strong>POST 场景</strong></h6><p>假设 bank.com 现在使用 post 请求来传递参数的, 那么这个请求可以简化为:</p>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">POST <span class="symbol">http:</span>/<span class="regexp">/bank.com/transfer</span>.<span class="keyword">do</span> HTTP/<span class="number">1.1</span></span><br><span class="line">...</span><br><span class="line">acct=BOB&amp;amount=<span class="number">100</span></span><br></pre></td></tr></table></figure>
+
+<p>这种情况下, a 标签和 img 标签都无法发送 post 请求, 但是可以使用 FORM 来完成:</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">form</span> <span class="attr">action</span>=<span class="string">"&lt;nowiki&gt;http://bank.com/transfer.do&lt;/nowiki&gt;"</span> <span class="attr">method</span>=<span class="string">"POST"</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">"hidden"</span> <span class="attr">name</span>=<span class="string">"acct"</span> <span class="attr">value</span>=<span class="string">"MARIA"</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">"hidden"</span> <span class="attr">name</span>=<span class="string">"amount"</span> <span class="attr">value</span>=<span class="string">"100000"</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">input</span> <span class="attr">type</span>=<span class="string">"submit"</span> <span class="attr">value</span>=<span class="string">"View my pictures"</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">form</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>我们还可以利用 JavaScript 来让文档载入的时候就发送这个请求:</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">body</span> <span class="attr">onload</span>=<span class="string">"document.forms[0].submit()"</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">form</span> <span class="attr">action</span>=<span class="string">"..."</span> <span class="attr">method</span>=<span class="string">"POST"</span>&gt;</span></span><br><span class="line">.....</span><br><span class="line"><span class="tag">&lt;/<span class="name">form</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<h6 id="其他的-HTTP-请求方法场景"><a href="#其他的-HTTP-请求方法场景" class="headerlink" title="其他的 HTTP 请求方法场景"></a>其他的 HTTP 请求方法场景</h6><p>假设现在银行使用的是 PUT 将数据放到一个JSON 中发送到后台中:</p>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">PUT <span class="symbol">http:</span>/<span class="regexp">/bank.com/transfer</span>.<span class="keyword">do</span> HTTP/<span class="number">1.1</span></span><br><span class="line"></span><br><span class="line">&#123; <span class="string">"acct"</span><span class="symbol">:<span class="string">"BOB"</span></span>, <span class="string">"amount"</span><span class="symbol">:</span><span class="number">100</span> &#125;</span><br></pre></td></tr></table></figure>
+
+<p>那么我们可以利用内嵌的 JavaScript :</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">script</span>&gt;</span></span><br><span class="line"><span class="actionscript"><span class="function"><span class="keyword">function</span> <span class="title">put</span><span class="params">()</span> </span>&#123;</span></span><br><span class="line"><span class="actionscript">    <span class="keyword">var</span> x = <span class="keyword">new</span> XMLHttpRequest();</span></span><br><span class="line"><span class="actionscript">    x.open(<span class="string">"PUT"</span>,<span class="string">"http://bank.com/transfer.do"</span>,<span class="literal">true</span>);</span></span><br><span class="line"><span class="actionscript">    x.setRequestHeader(<span class="string">"Content-Type"</span>, <span class="string">"application/json"</span>); </span></span><br><span class="line"><span class="javascript">    x.send(<span class="built_in">JSON</span>.stringify(&#123;<span class="string">"acct"</span>:<span class="string">"BOB"</span>, <span class="string">"amount"</span>:<span class="number">100</span>&#125;)); </span></span><br><span class="line">&#125;</span><br><span class="line"><span class="tag">&lt;/<span class="name">script</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">body</span> <span class="attr">onload</span>=<span class="string">"put()"</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p>幸运的是这段 PUT 请求并不会发送, 因为 同源策略 的限制. 除非你的后台设置了</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Access-Control-Allow-Origin: *</span><br><span class="line">Access-Control-Allow-Methods: PUT</span><br></pre></td></tr></table></figure>
+
+<h2 id="1-3-防御"><a href="#1-3-防御" class="headerlink" title="1.3 防御"></a>1.3 防御</h2><p>使用 <strong>state 参数</strong>，它是一个随机值的参数。</p>
+<p>在OAuth2.0的授权码模式中，第三方应用（如淘宝请求QQ，淘宝就是第三方应用）请求授权码的时候需要发一个随机的state参数，</p>
+<p>同时他会有一个回调地址用来接收授权码，认证服务器会把授权码和一开始接受的state发送给第三方应用的回调地址中。（也可能是一个接口）</p>
+<p>在这一步就可以通过state值来判断该授权码是不是自己的。就可以有效抵御CSRF攻击。</p>
+<h1 id="二、XSS攻击"><a href="#二、XSS攻击" class="headerlink" title="二、XSS攻击"></a>二、XSS攻击</h1><p>人们经常将跨站脚本攻击（Cross Site Scripting）缩写为CSS，但这会与层叠样式表（Cascading Style Sheets，CSS）的缩写混淆。因此，有人将跨站脚本攻击缩写为XSS。</p>
+<h2 id="2-1-特点"><a href="#2-1-特点" class="headerlink" title="2.1 特点"></a>2.1 特点</h2><p>与钓鱼攻击相比，XSS攻击所带来的危害更大，通常具有如下特点：</p>
+<p>①由于XSS攻击在用户当前使用的应用程序中执行，用户将会看到与其有关的个性化信息，如账户信息或“欢迎回来”消息，克隆的Web站点不会显示个性化信息。</p>
+<p>②通常，在钓鱼攻击中使用的克隆Web站点一经发现，就会立即被关闭。</p>
+<p>③许多浏览器与安全防护软件产品都内置钓鱼攻击过滤器，可阻止用户访问恶意的克隆站点。</p>
+<p>④如果客户访问一个克隆的Web网银站点，银行一般不承担责任。但是，如果攻击者通过银行应用程序中的XSS漏洞攻击了银行客户，则银行将不能简单地推卸责任。 </p>
+<h2 id="2-2-防御方法"><a href="#2-2-防御方法" class="headerlink" title="2.2 防御方法"></a>2.2 防御方法</h2><p><strong>1、HTML节点内容的防御</strong></p>
+<p>将用户输入的内容进行转义：      </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">var escapeHtml &#x3D; function(str) &#123;</span><br><span class="line">    str &#x3D; str.replace(&#x2F;&lt;&#x2F;g,&#39;&lt;&#39;);</span><br><span class="line">    str &#x3D; str.replace(&#x2F;&lt;&#x2F;g,&#39;&gt;&#39;);</span><br><span class="line">    return str;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>​                 </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ctx.render(&#39;index&#39;, &#123;comments, from: escapeHtml(ctx.query.from || &#39;&#39;)&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>2、HTML属性的防御</strong></p>
+<p>对空格，单引号，双引号进行转义</p>
+<p>​                        </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">var escapeHtmlProperty &#x3D; function (str) &#123;</span><br><span class="line">    if(!str) return &#39;&#39;;</span><br><span class="line">    str &#x3D; str.replace(&#x2F;&quot;&#x2F;g,&#39;&amp;quto;&#39;);</span><br><span class="line">    str &#x3D; str.replace(&#x2F;&#39;&#x2F;g,&#39;&#39;&#39;);</span><br><span class="line">    str &#x3D; str.replace(&#x2F; &#x2F;g,&#39;&amp;#32;&#39;);</span><br><span class="line">    return str;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>​                        </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">ctx.render(&#39;index&#39;, &#123;posts, comments,</span><br><span class="line">    from:ctx.query.from || &#39;&#39;,</span><br><span class="line">    avatarId:escapeHtmlProperty(ctx.query.avatarId || &#39;&#39;)&#125;);</span><br></pre></td></tr></table></figure>
+
+<p><strong>3、JavaScript的防御</strong></p>
+<p>对引号进行转义</p>
+<p>​                        </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">var escapeForJS &#x3D; function(str)&#123;</span><br><span class="line">        if(!str) return &#39;&#39;;</span><br><span class="line">        str &#x3D; str.replace(&#x2F;\\&#x2F;g,&#39;\\\\&#39;);</span><br><span class="line">        str &#x3D; str.replace(&#x2F;&quot;&#x2F;g,&#39;\\&quot;&#39;);</span><br><span class="line">        return str;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>4、富文本的防御</strong><br>富文本的情况非常的复杂，js可以藏在标签里，超链接url里，何种属性里。</p>
+<p>​                        </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">&lt;script&gt;alert(1)&lt;&#x2F;script&gt;</span><br><span class="line">&lt;a href&#x3D;&quot;javascript:alert(1)&quot;&gt;&lt;&#x2F;a&gt;</span><br><span class="line">&lt;img src&#x3D;&quot;abc&quot; onerror&#x3D;&quot;alert(1)&quot;&#x2F;&gt;</span><br></pre></td></tr></table></figure>
+
+<p>所以我们不能过用上面的方法做简单的转义。因为情况实在太多了。</p>
+<p>现在我们换个思路，<br>提供两种过滤的办法：</p>
+<p>1）黑名单<br>我们可以把<script/> onerror 这种危险标签或者属性纳入黑名单，过滤掉它。但是我们想，这种方式你要考虑很多情况，你也有可能漏掉一些情况等。</p>
+<p>2）白名单<br>这种方式只允许部分标签和属性。不在这个白名单中的，一律过滤掉它。但是这种方式编码有点麻烦，我们需要去解析html树状结构，然后进行过滤，把过滤后安全的html在输出。<br>这里提供一个包，帮助我们去解析html树状结构，它使用起来和jquery非常的类似。</p>
+<p>​                        </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">npm install cheerio --save</span><br></pre></td></tr></table></figure>
+
+<p>​                        </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">var xssFilter &#x3D; function(html) &#123;</span><br><span class="line">    if(!html) return &#39;&#39;;</span><br><span class="line">    var cheerio &#x3D; require(&#39;cheerio&#39;);</span><br><span class="line">    var $ &#x3D; cheerio.load(html);</span><br><span class="line">    &#x2F;&#x2F;白名单</span><br><span class="line">    var whiteList &#x3D; &#123;</span><br><span class="line">        &#39;html&#39; : [&#39;&#39;],</span><br><span class="line">        &#39;body&#39; : [&#39;&#39;],</span><br><span class="line">        &#39;head&#39; : [&#39;&#39;],</span><br><span class="line">        &#39;div&#39; : [&#39;class&#39;],</span><br><span class="line">        &#39;img&#39; : [&#39;src&#39;],</span><br><span class="line">        &#39;a&#39; : [&#39;href&#39;],</span><br><span class="line">        &#39;font&#39;:[&#39;size&#39;,&#39;color&#39;]</span><br><span class="line">    &#125;;</span><br><span class="line"></span><br><span class="line">    $(&#39;*&#39;).each(function(index,elem)&#123;</span><br><span class="line">        if(!whiteList[elem.name]) &#123;</span><br><span class="line">            $(elem).remove();</span><br><span class="line">            return;</span><br><span class="line">        &#125;</span><br><span class="line">        for(var attr in elem.attribs) &#123;</span><br><span class="line">            if(whiteList[elem.name].indexOf(attr) &#x3D;&#x3D;&#x3D; -1) &#123;</span><br><span class="line">                $(elem).attr(attr,null);</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">    &#125;);</span><br><span class="line"></span><br><span class="line">    return $.html();</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">console.log(xssFilter(&#39;&lt;div&gt;&lt;font color&#x3D;&quot;red&quot;&gt;你好&lt;&#x2F;font&gt;&lt;a href&#x3D;&quot;http:&#x2F;&#x2F;www.baidu.com&quot;&gt;百度&lt;&#x2F;a&gt;&lt;script&gt;alert(&quot;哈哈你被攻击了&quot;)&lt;&#x2F;script&gt;&lt;&#x2F;div&gt;&#39;));</span><br></pre></td></tr></table></figure>
+
+<p><strong>5、CSP(Content Security Policy)</strong></p>
+<p>内容安全策略（Content Security Policy，简称CSP）是一种以可信白名单作机制，来限制网站中是否可以包含某来源内容。默认配置下不允许执行内联代码（<script>块内容，内联事件，内联样式），以及禁止执行eval() , newFunction() , setTimeout([string], ...) 和setInterval([string], ...) 。     </p>
+<p><strong>示例：</strong></p>
+<p>1.只允许本站资源                  </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Content-Security-Policy： default-src ‘self’</span><br></pre></td></tr></table></figure>
+
+<p>2.允许本站的资源以及任意位置的图片以及 <a href="https://segmentfault.com" target="_blank" rel="noopener">https://segmentfault.com</a> 下的脚本。                      </p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Content-Security-Policy： default-src ‘self’; img-src *;</span><br><span class="line">script-src https:&#x2F;&#x2F;segmentfault.com</span><br></pre></td></tr></table></figure>
+
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/" rel="tag"># 网络安全</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2020/07/15/docker%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/" rel="prev" title="docker学习（一）容器数据卷与数据卷容器">
+      <i class="fa fa-chevron-left"></i> docker学习（一）容器数据卷与数据卷容器
+    </a></div>
+      <div class="post-nav-item"></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          Table of Contents
+        </li>
+        <li class="sidebar-nav-overview">
+          Overview
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#一、CSRF"><span class="nav-number">1.</span> <span class="nav-text">一、CSRF</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#1-2例子"><span class="nav-number">1.1.</span> <span class="nav-text">1.2例子</span></a><ol class="nav-child"><li class="nav-item nav-level-6"><a class="nav-link" href="#GET-场景"><span class="nav-number">1.1.0.0.0.1.</span> <span class="nav-text">GET 场景</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#POST-场景"><span class="nav-number">1.1.0.0.0.2.</span> <span class="nav-text">POST 场景</span></a></li><li class="nav-item nav-level-6"><a class="nav-link" href="#其他的-HTTP-请求方法场景"><span class="nav-number">1.1.0.0.0.3.</span> <span class="nav-text">其他的 HTTP 请求方法场景</span></a></li></ol></li></ol></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#1-3-防御"><span class="nav-number">1.2.</span> <span class="nav-text">1.3 防御</span></a></li></ol></li><li class="nav-item nav-level-1"><a class="nav-link" href="#二、XSS攻击"><span class="nav-number">2.</span> <span class="nav-text">二、XSS攻击</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#2-1-特点"><span class="nav-number">2.1.</span> <span class="nav-text">2.1 特点</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#2-2-防御方法"><span class="nav-number">2.2.</span> <span class="nav-text">2.2 防御方法</span></a></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+  <p class="site-author-name" itemprop="name">Free Zhang</p>
+  <div class="site-description" itemprop="description">Life is so much better with music and code！</div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">5</span>
+          <span class="site-state-item-name">posts</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+        <span class="site-state-item-count">3</span>
+        <span class="site-state-item-name">tags</span>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 
+  <span itemprop="copyrightYear">2020</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Free Zhang</span>
+</div>
+  <div class="powered-by">Powered by <a href="https://hexo.io/" class="theme-link" rel="noopener" target="_blank">Hexo</a> & <a href="https://muse.theme-next.org/" class="theme-link" rel="noopener" target="_blank">NexT.Muse</a>
+  </div>
+
+        
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
